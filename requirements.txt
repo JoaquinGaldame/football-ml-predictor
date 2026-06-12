@@ -9,6 +9,7 @@ pydantic>=2.7
 pydantic-settings>=2.3
 python-dotenv>=1.0
 pytest>=8.2
+respx>=0.21
 requests>=2.32
 ruff>=0.5
 scikit-learn>=1.5

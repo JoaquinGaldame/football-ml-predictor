@@ -31,6 +31,18 @@ class Team(TimestampMixin, Base):
     fifa_code: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
 
 
+class Venue(TimestampMixin, Base):
+    __tablename__ = "venues"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    city: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    source: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
 class Match(TimestampMixin, Base):
     __tablename__ = "matches"
     __table_args__ = (UniqueConstraint("external_id", name="uq_matches_external_id"),)
@@ -44,11 +56,13 @@ class Match(TimestampMixin, Base):
     goals_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
     goals_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
     neutral_site: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    venue_id: Mapped[int | None] = mapped_column(ForeignKey("venues.id"), nullable=True, index=True)
     venue: Mapped[str | None] = mapped_column(String(255), nullable=True)
     country: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     home_team: Mapped[Team] = relationship(foreign_keys=[team_home_id])
     away_team: Mapped[Team] = relationship(foreign_keys=[team_away_id])
+    venue_ref: Mapped[Venue | None] = relationship(foreign_keys=[venue_id])
 
 
 class TeamMatchStats(Base):

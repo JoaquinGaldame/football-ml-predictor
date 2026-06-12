@@ -24,6 +24,20 @@ def upgrade() -> None:
     op.create_index("ix_teams_fifa_code", "teams", ["fifa_code"], unique=False)
 
     op.create_table(
+        "venues",
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("city", sa.String(length=255), nullable=True),
+        sa.Column("country", sa.String(length=255), nullable=True),
+        sa.Column("latitude", sa.Float(), nullable=True),
+        sa.Column("longitude", sa.Float(), nullable=True),
+        sa.Column("source", sa.String(length=255), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_venues_name", "venues", ["name"], unique=False)
+
+    op.create_table(
         "matches",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("external_id", sa.String(length=128), nullable=False),
@@ -34,6 +48,7 @@ def upgrade() -> None:
         sa.Column("goals_home", sa.Integer(), nullable=True),
         sa.Column("goals_away", sa.Integer(), nullable=True),
         sa.Column("neutral_site", sa.Boolean(), nullable=False),
+        sa.Column("venue_id", sa.Integer(), sa.ForeignKey("venues.id"), nullable=True),
         sa.Column("venue", sa.String(length=255), nullable=True),
         sa.Column("country", sa.String(length=255), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
@@ -44,6 +59,7 @@ def upgrade() -> None:
     op.create_index("ix_matches_date", "matches", ["date"], unique=False)
     op.create_index("ix_matches_team_home_id", "matches", ["team_home_id"], unique=False)
     op.create_index("ix_matches_team_away_id", "matches", ["team_away_id"], unique=False)
+    op.create_index("ix_matches_venue_id", "matches", ["venue_id"], unique=False)
 
     op.create_table(
         "team_match_stats",
@@ -157,9 +173,12 @@ def downgrade() -> None:
     op.drop_table("team_match_stats")
     op.drop_index("ix_matches_team_away_id", table_name="matches")
     op.drop_index("ix_matches_team_home_id", table_name="matches")
+    op.drop_index("ix_matches_venue_id", table_name="matches")
     op.drop_index("ix_matches_date", table_name="matches")
     op.drop_index("ix_matches_external_id", table_name="matches")
     op.drop_table("matches")
+    op.drop_index("ix_venues_name", table_name="venues")
+    op.drop_table("venues")
     op.drop_index("ix_teams_fifa_code", table_name="teams")
     op.drop_index("ix_teams_name", table_name="teams")
     op.drop_table("teams")

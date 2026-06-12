@@ -16,6 +16,7 @@ from app.database.models import (
     TeamMatchStats,
     TeamRating,
     TrainingRun,
+    Venue,
     WeatherSnapshot,
 )
 
@@ -39,6 +40,7 @@ class MatchPayload:
     neutral_site: bool = False
     venue: str | None = None
     country: str | None = None
+    venue_data: "VenuePayload | None" = None
 
 
 @dataclass(slots=True)
@@ -60,6 +62,16 @@ class PlayerStatusPayload:
     reason: str | None
     source: str | None
     reported_at: datetime
+
+
+@dataclass(slots=True)
+class VenuePayload:
+    name: str
+    city: str | None = None
+    country: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    source: str | None = None
 
 
 @dataclass(slots=True)
@@ -102,14 +114,51 @@ class TeamRepository:
         return self.session.scalar(select(Team).where(Team.name == name))
 
 
+class VenueRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def upsert(self, payload: VenuePayload) -> Venue:
+        venue = self.session.scalar(select(Venue).where(Venue.name == payload.name))
+        if venue is None:
+            venue = Venue(
+                name=payload.name,
+                city=payload.city,
+                country=payload.country,
+                latitude=payload.latitude,
+                longitude=payload.longitude,
+                source=payload.source,
+            )
+            self.session.add(venue)
+            self.session.flush()
+            return venue
+
+        venue.city = payload.city or venue.city
+        venue.country = payload.country or venue.country
+        venue.latitude = payload.latitude if payload.latitude is not None else venue.latitude
+        venue.longitude = payload.longitude if payload.longitude is not None else venue.longitude
+        venue.source = payload.source or venue.source
+        self.session.flush()
+        return venue
+
+    def get_by_name(self, name: str) -> Venue | None:
+        return self.session.scalar(select(Venue).where(Venue.name == name))
+
+
 class MatchRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.teams = TeamRepository(session)
+        self.venues = VenueRepository(session)
 
     def upsert_match(self, payload: MatchPayload) -> Match:
         home_team = self.teams.upsert(payload.home_team)
         away_team = self.teams.upsert(payload.away_team)
+        venue_row = None
+        if payload.venue_data is not None:
+            venue_row = self.venues.upsert(payload.venue_data)
+        elif payload.venue:
+            venue_row = self.venues.upsert(VenuePayload(name=payload.venue, country=payload.country))
         match = self.session.scalar(select(Match).where(Match.external_id == payload.external_id))
         if match is None:
             match = Match(
@@ -121,6 +170,7 @@ class MatchRepository:
                 goals_home=payload.goals_home,
                 goals_away=payload.goals_away,
                 neutral_site=payload.neutral_site,
+                venue_id=venue_row.id if venue_row else None,
                 venue=payload.venue,
                 country=payload.country,
             )
@@ -135,6 +185,7 @@ class MatchRepository:
         match.goals_home = payload.goals_home
         match.goals_away = payload.goals_away
         match.neutral_site = payload.neutral_site
+        match.venue_id = venue_row.id if venue_row else match.venue_id
         match.venue = payload.venue
         match.country = payload.country
         self.session.flush()
@@ -165,7 +216,10 @@ class MatchRepository:
     def upsert_weather(self, match: Match, payload: WeatherPayload | None) -> None:
         if payload is None:
             return
-        snapshot = self.session.scalar(select(WeatherSnapshot).where(WeatherSnapshot.match_id == match.id))
+        query = select(WeatherSnapshot).where(WeatherSnapshot.match_id == match.id)
+        if payload.source:
+            query = query.where(WeatherSnapshot.source == payload.source)
+        snapshot = self.session.scalar(query)
         if snapshot is None:
             snapshot = WeatherSnapshot(match_id=match.id)
             self.session.add(snapshot)

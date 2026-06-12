@@ -31,6 +31,25 @@ class Settings(BaseSettings):
     test_size: float = Field(default=0.25, alias="TEST_SIZE")
     min_training_rows: int = Field(default=8, alias="MIN_TRAINING_ROWS")
     enable_mock_ingestion: bool = Field(default=True, alias="ENABLE_MOCK_INGESTION")
+    enable_real_ingestion: bool = Field(default=False, alias="ENABLE_REAL_INGESTION")
+    enable_player_status: bool = Field(default=False, alias="ENABLE_PLAYER_STATUS")
+    request_timeout_seconds: float = Field(default=15.0, alias="REQUEST_TIMEOUT_SECONDS")
+    football_data_api_key: str | None = Field(default=None, alias="FOOTBALL_DATA_API_KEY")
+    football_data_base_url: str = Field(default="https://api.football-data.org/v4", alias="FOOTBALL_DATA_BASE_URL")
+    football_data_competitions: str = Field(default="WC,EC", alias="FOOTBALL_DATA_COMPETITIONS")
+    open_meteo_forecast_url: str = Field(
+        default="https://api.open-meteo.com/v1/forecast",
+        alias="OPEN_METEO_FORECAST_URL",
+    )
+    open_meteo_historical_url: str = Field(
+        default="https://archive-api.open-meteo.com/v1/archive",
+        alias="OPEN_METEO_HISTORICAL_URL",
+    )
+    elo_ratings_url: str = Field(default="https://www.eloratings.net/World.tsv", alias="ELO_RATINGS_URL")
+
+    @property
+    def competition_codes(self) -> list[str]:
+        return [code.strip() for code in self.football_data_competitions.split(",") if code.strip()]
 
 
 @lru_cache(maxsize=1)
